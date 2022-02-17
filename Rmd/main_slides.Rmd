@@ -16,7 +16,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r attach packages, echo=TRUE, message=FALSE}
 library(palmerpenguins)
-
+library(lme4)
+library(MuMIn)
 library(randomForest)
 library(caret)
 
@@ -103,10 +104,30 @@ my_lm_model <- lm(body_mass_g ~ 1 + bill_length_mm + bill_depth_mm + flipper_len
    data = dat)
 
 summary(my_lm_model)
+par(mfrow = c(1,4))
+plot(my_lm_model)
+par(mfrom = c(1,1))
 ```
 
 ## Linear model with random effects
+- Random effects can fit either a random intercept or random slope
+- Adjust for issues of spatial temporal corellation
+- use a slight different structure 
 
+```{r}
+ggplot(dat, aes(body_mass_g, group = species )) + geom_density(aes(fill= species),alpha = 0.4) + theme_bw()
+
+my_random_effects_model <- lmer(body_mass_g ~   bill_length_mm + (1|species), data = dat)
+
+dat$predict_random <- predict(my_random_effects_model)
+
+dat$resid_randm <-  resid(my_random_effects_model)
+
+
+
+ggplot(dat, aes(group = species, color = species)) + geom_point(aes(x = bill_length_mm, y = body_mass_g)) + 
+  geom_line(aes(bill_length_mm, predict_random)) + theme_bw()
+```
 
 ## Random Forest 
 
