@@ -1,0 +1,210 @@
+---
+title: "Overview of modelling in R"
+subtitle: "FCOR599 Workshop"
+author: "Sarah Smith-Tripp, Martin Queinnec"
+date: "18/02/2022"
+output:
+  slidy_presentation: default
+  ioslides_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Packages 
+
+```{r attach packages, echo=TRUE, message=FALSE}
+library(palmerpenguins)
+
+library(randomForest)
+library(caret)
+
+library(tidyverse)
+```
+
+## Goal of today 
+
+- High-level overview of modelling
+
+- Linear models and random forest models in R
+
+- Assessing a model accuracy 
+
+## Modelling
+
+- Your goal is to predict a **response** variable from a set of **predictor** variables
+
+- You collected observations of response and predictor variables
+
+- You want to use this data to model the response variable from the predictor variables
+
+- Eventually, you might want to use this model to predict the response variable for new data
+
+## Some considerations
+
+- Is the response variable **continuous** or **discrete**? 
+
+- **Regression** models are used for continuous response variables
+
+- **Classification** models are used for discrete response variables
+
+- Are your predictor variables continuous, discrete or a mix of both? 
+
+- All these considerations are important when choosing a type of model
+
+## Modeling in R
+
+- Many functions/packages exist for different types of models
+
+- The base `stats` packages implements basic models (e.g. `lm`)
+
+- Most models are a syntax similar to: 
+
+```{r, eval = FALSE}
+my_model <- model_fun(formula = y ~ 1 + x1 + x2, 
+                      data = my_data, 
+                      ...)
+
+my_model <- model_fun(x = pred_df, 
+                      y = resp_obs, 
+                      ...)
+```
+
+- For most models, predictions can be made with the function `predict()`
+
+```{r, eval = FALSE}
+predict(my_model, newdata)
+```
+
+## Palmer Penguins Dataset
+
+![](https://allisonhorst.github.io/palmerpenguins/reference/figures/lter_penguins.png){width=80%}
+![](https://allisonhorst.github.io/palmerpenguins/reference/figures/culmen_depth.png){width=80%}
+
+```{r, echo=FALSE}
+dat <- penguins %>% 
+  filter(across(.cols = everything(), ~!is.na(.x)))
+```
+
+```{r}
+head(dat)
+```
+
+## Linear model
+
+- Let's assume that there is a linear relationship between body mass and bill / flipper dimensions
+
+$Y_{i} = a + \sum_{i}^{u} b_{i} \times X_{i}$
+
+
+```{r}
+my_lm_model <- lm(body_mass_g ~ 1 + bill_length_mm + bill_depth_mm + flipper_length_mm, 
+   data = dat)
+
+summary(my_lm_model)
+```
+
+## Linear model with random effects
+
+
+## Random Forest 
+
+- Random Forest is a type of model that can be used for both regression and classification 
+
+- Forest of classification or regression trees
+
+- At each node, **mtry** predictor variables are randomly selected and the tree splits the data minimizing the error 
+
+![](https://www.tibco.com/sites/tibco/files/media_entity/2021-05/random-forest-diagram.svg){width=80%}
+
+## Random Forest - Regression
+
+```{r}
+pred_vars_df <- dat %>%
+  select(species, island, bill_length_mm, bill_depth_mm, flipper_length_mm, sex)
+
+rf_reg <- randomForest(x = pred_vars_df, 
+                       y = dat$body_mass_g)
+
+rf_reg
+```
+
+## Random Forest - Classification
+
+- You need to make sure that the response variable is a **factor** (categorical data)
+
+```{r}
+pred_vars_df <- dat %>%
+  select(island, bill_length_mm, bill_depth_mm, flipper_length_mm, sex, body_mass_g)
+
+rf_class <- randomForest(x = pred_vars_df, 
+                       y = dat$species)
+
+rf_class
+```
+
+## Random Forest - Variable importance
+
+- It is possible to derive a measure of varaible importance from a random forest model
+
+- If all the observations for a given predictor variable are permuted, what is the impact on the accuracy of the model? 
+
+```{r}
+importance(rf_class)
+
+varImpPlot(rf_class)
+```
+
+## Accuracy metrics
+
+We assess the accuracy of a model by comparing the observed values ($y_{i}$) to the predicted values ($\hat{y}_{i}$)
+
+Regression: 
+
+- Coefficient of determination: $R^{2}$
+
+- Root mean square error: $RMSE = \sqrt{\frac{\sum{(y_{i} - \hat{y}_{i})^{2}}}{n}}$
+
+- Mean error (bias): $ME = \frac{\sum{(y_{i} - \hat{y}_{i}})}{n}$
+
+Classification: 
+
+- Overall, Producer, User accuracy 
+
+- Kappa coefficient
+
+## Training and validation sets
+
+- It is important to assess the accuracy of a model of unseen data 
+
+- Most obvious way is to split the observations into training and validation (testing) sets
+
+![](https://community.alteryx.com/t5/image/serverpage/image-id/71542i222AF143484A2306/image-size/large?v=v2&px=999){width=80%}
+
+- We can also use *cross-validation* (e.g. k-fold CV with k = 4)
+
+![](https://community.alteryx.com/t5/image/serverpage/image-id/71553i43D85DE352069CB9/image-size/large?v=v2&px=999){width=80%}
+
+## Scatterplot of predicted VS observed values
+
+```{r, echo = FALSE}
+my_lm_model <- lm(body_mass_g ~ 1 + bill_length_mm + bill_depth_mm + flipper_length_mm + sex, 
+   data = dat)
+
+lm_preds <- my_lm_model$fitted.values
+lm_obs <- my_lm_model$model$body_mass_g
+
+lm_df <- data.frame(obs = my_lm_model$model$body_mass_g, 
+                    pred = my_lm_model$fitted.values)
+```
+
+```{r}
+ggplot(lm_df, aes(x = pred, y = obs)) + 
+  geom_point()+ 
+  geom_abline(linetype = "dashed") + 
+  coord_equal() + 
+  theme_bw() + 
+  labs(x = "Predicted body mass (g)", 
+       y = "Obsverved body mass (g)")
+```
