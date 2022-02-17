@@ -108,7 +108,7 @@ summary(my_lm_model)
 ## Linear model with random effects
 
 
-## Random Forest 
+## Random Forest models
 
 - Random Forest is a type of model that can be used for both regression and classification 
 
