@@ -139,14 +139,38 @@ rf_body_mass <- randomForest(x = predictor_vars,
                              y = dat$body_mass_g)
 
 rf_body_mass
+```
 
+What do `Mean of squared residuals` and `% Var explained` mean? 
+
+- Residuals (error): $y_{i} - \hat{y}_{i}$
+
+- Mean square error: $MSE = \frac{\sum{(y_{i} - \hat{y}_{i})^{2}}}{n}$
+
+- Root mean square error: $RMSE = \sqrt{\frac{\sum{(y_{i} - \hat{y}_{i})^{2}}}{n}}$
+
+- Coefficient of determination (i.e. variance explained): $R^{2} = 1 - \frac{\sum{(y_{i} - \hat{y}_{i})^{2}}}{\sum{(y_{i} - \overline{y})^{2}}}$
+
+In the random forest output, these accuracy metrics are calculated from the **out-of-bag data**
+
+## Random Forest - Regression
+
+```{r}
 # Calculate our own summary metrics
 obs_pred_df <- data.frame(obs = rf_body_mass$y, 
                           pred = rf_body_mass$predicted)
 
+obs_pred_df <- obs_pred_df %>%
+  mutate(residual = obs - pred)
+
+head(obs_pred_df)
+
+# The caret package has functions to calculate R2 and RMSE
 obs_pred_df %>%
   summarize(R2 = caret::R2(pred = pred, obs = obs), 
-            RMSE = caret::RMSE(pred = pred, obs = obs))
+            RMSE = caret::RMSE(pred = pred, obs = obs), 
+            ME = mean(residual), 
+            MAE = mean(abs(residual)))
 
 # Scatterplot of observed VS predicted values
 ggplot(obs_pred_df, aes(x = obs, y = pred)) + 
