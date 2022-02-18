@@ -4,8 +4,8 @@ subtitle: "FCOR599 Workshop"
 author: "Sarah Smith-Tripp, Martin Queinnec"
 date: "18/02/2022"
 output:
-  slidy_presentation: default
   ioslides_presentation: default
+  slidy_presentation: default
 ---
 
 ```{r setup, include=FALSE}
@@ -124,10 +124,10 @@ ggplot(dat, aes(body_mass_g, group = species )) + geom_density(aes(fill= species
 ```
 
 ## Building random effect models 
-```{r}
+```{r message = F}
 my_random_intercept_model <- lmer(body_mass_g ~   bill_length_mm + (1|species), data = dat)
 my_random_slope_model <- lmer(body_mass_g ~   bill_length_mm + (bill_length_mm|species), data = dat)
-
+dat$predict_random <- predict(my_random_slope_model)
 
 ggplot(dat, aes(group = species, color = species)) + geom_point(aes(x = bill_length_mm, y = body_mass_g)) + 
   geom_line(aes(bill_length_mm, predict_random)) + theme_bw()
