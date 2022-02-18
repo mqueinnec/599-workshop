@@ -16,10 +16,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r attach packages, echo=TRUE, message=FALSE}
 library(palmerpenguins)
-
+library(lme4)
+library(MuMIn)
 library(randomForest)
 library(caret)
-
+library(cowplot)
 library(tidyverse)
 ```
 
@@ -103,9 +104,70 @@ my_lm_model <- lm(body_mass_g ~ 1 + bill_length_mm + bill_depth_mm + flipper_len
    data = dat)
 
 summary(my_lm_model)
+par(mfrow = c(1,4))
+plot(my_lm_model)
+par(mfrom = c(1,1))
 ```
 
 ## Linear model with random effects
+- Random effects can fit either a random intercept or random slope
+- Adjust for issues of spatial temporal corellation
+- use a slight different structure 
+
+## Why perform random effects?
+- we assume that there will be variability in the relationship as a component of random effect
+- look at the data 
+
+```{r}
+ggplot(dat, aes(body_mass_g, group = species )) + geom_density(aes(fill= species),alpha = 0.4) + theme_bw()
+
+```
+
+## Building random effect models 
+```{r}
+my_random_intercept_model <- lmer(body_mass_g ~   bill_length_mm + (1|species), data = dat)
+my_random_slope_model <- lmer(body_mass_g ~   bill_length_mm + (bill_length_mm|species), data = dat)
+
+
+ggplot(dat, aes(group = species, color = species)) + geom_point(aes(x = bill_length_mm, y = body_mass_g)) + 
+  geom_line(aes(bill_length_mm, predict_random)) + theme_bw()
+```
+
+##checking models of random effects 
+-check model fits
+```{r}
+summary(my_random_slope_model)
+summary(my_random_intercept_model)
+```
+
+```{r, echo = F}
+Model_Checking_data <- dat %>% 
+  mutate(fit = fitted(my_random_intercept_model),
+         resid_mod= resid(my_random_intercept_model),
+         theorectical_quantiles = ppoints(resid_mod),
+         sample_quantiles = sort(rnorm(length(resid_mod), mean(resid_mod), sd(resid_mod))))
+
+qqplot_test <- ggplot(Model_Checking_data) + geom_point(aes(
+  sample_quantiles, theorectical_quantiles
+)) + theme_bw()
+
+resid_graph <-  ggplot(Model_Checking_data) + 
+  geom_point(aes(fit, resid_mod, color = species)) + geom_abline(aes(intercept = 0, slope = 0)) + theme_bw()
+plot_grid(qqplot_test, resid_graph, rel_widths = c(1, 1.5))
+```
+- compare models with log likelihood test
+```{r}
+anova(my_random_slope_model, my_random_intercept_model)
+
+MuMIn::r.squaredGLMM(my_random_intercept_model)
+### R2m is fixed effects only , R2c is mixed + random 
+
+```
+
+
+-Nakagawa, S., Johnson, P.C.D., Schielzeth, H., 2017. The coefficient of determination R2 and intra-class correlation coefficient from generalized linear mixed-effects models revisited and expanded. Journal of The Royal Society Interface 14, 20170213. https://doi.org/10.1098/rsif.2017.0213
+
+
 
 
 ## Random Forest models
