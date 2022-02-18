@@ -25,19 +25,13 @@ library(tidyverse)
 
 ## Goal of today 
 
-- High-level overview of modelling
-
-- Linear models and random forest models in R
-
-- Assessing a model accuracy 
-
-## Modelling
-
 - Your goal is to predict a **response** variable from a set of **predictor** variables
 
 - You collected observations of response and predictor variables
 
 - You want to use this data to model the response variable from the predictor variables
+
+- We will take the example of linear models, linear mixed-effects models and random forest models
 
 - Eventually, you might want to use this model to predict the response variable for new data
 
@@ -112,73 +106,102 @@ summary(my_lm_model)
 
 - Random Forest is a type of model that can be used for both regression and classification 
 
-- Forest of classification or regression trees
+- Forest of decision trees that split the data into subgroups
 
-- At each node, **mtry** predictor variables are randomly selected and the tree splits the data minimizing the error 
+For a given tree: 
+
+- A **random** sample of the observations is taken
+
+- At each node, **mtry** predictor variables are **randomly** selected and the tree splits the data so that resulting subsgroups are as different from each other as possible and observations falling in the same subgroup are as similar to each other as possible
+
+- If a new observation is ran through the tree, a prediction is made
+
+- We can calculate an out-of-bag error (OOB) on the observations left out. 
+
+Considering the forest: 
+
+- We can run a new observation through all the trees in the forest
+
+- A prediction will be made for this observation by averaging (regression) or taking the most common predicted value (classification)
+
 
 ![](https://www.tibco.com/sites/tibco/files/media_entity/2021-05/random-forest-diagram.svg){width=80%}
 
 ## Random Forest - Regression
 
+Let's assume that we want to predict the **body mass** of each penguin based on species, bill length, bill depth, flipper length, sex and the island where the penguin was observed. 
+
 ```{r}
-pred_vars_df <- dat %>%
-  select(species, island, bill_length_mm, bill_depth_mm, flipper_length_mm, sex)
+predictor_vars <- dat %>%
+  select(species, bill_length_mm, bill_depth_mm, flipper_length_mm, sex, island)
 
-rf_reg <- randomForest(x = pred_vars_df, 
-                       y = dat$body_mass_g)
+rf_body_mass <- randomForest(x = predictor_vars, 
+                             y = dat$body_mass_g)
 
-rf_reg
+rf_body_mass
+
+# Calculate our own summary metrics
+obs_pred_df <- data.frame(obs = rf_body_mass$y, 
+                          pred = rf_body_mass$predicted)
+
+obs_pred_df %>%
+  summarize(R2 = caret::R2(pred = pred, obs = obs), 
+            RMSE = caret::RMSE(pred = pred, obs = obs))
+
+# Scatterplot of observed VS predicted values
+ggplot(obs_pred_df, aes(x = obs, y = pred)) + 
+  geom_point() + 
+  geom_abline(linetype = "dashed", color = "red") + 
+  coord_equal() + 
+  theme_bw() + 
+  labs(x = "Observed body mass (g)", 
+       y = "Predicted body mass (g)")
 ```
 
 ## Random Forest - Classification
 
+- Let's assume that we want to predict the **species** 
+
 - You need to make sure that the response variable is a **factor** (categorical data)
 
 ```{r}
-pred_vars_df <- dat %>%
+predictor_vars <- dat %>%
   select(island, bill_length_mm, bill_depth_mm, flipper_length_mm, sex, body_mass_g)
 
-rf_class <- randomForest(x = pred_vars_df, 
-                       y = dat$species)
+rf_species <- randomForest(x = predictor_vars, 
+                             y = dat$species)
 
-rf_class
+rf_species
+
+OA = sum(diag(rf_species$confusion)) / nrow(dat)
+
+(1 - OA)*100
+
 ```
 
 ## Random Forest - Variable importance
 
-- It is possible to derive a measure of varaible importance from a random forest model
+- It is possible to derive a measure of variable importance from a random forest model
 
 - If all the observations for a given predictor variable are permuted, what is the impact on the accuracy of the model? 
 
 ```{r}
-importance(rf_class)
+importance(rf_body_mass)
 
-varImpPlot(rf_class)
+varImpPlot(rf_body_mass)
 ```
 
-## Accuracy metrics
+```{r}
+importance(rf_species)
 
-We assess the accuracy of a model by comparing the observed values ($y_{i}$) to the predicted values ($\hat{y}_{i}$)
-
-Regression: 
-
-- Coefficient of determination: $R^{2}$
-
-- Root mean square error: $RMSE = \sqrt{\frac{\sum{(y_{i} - \hat{y}_{i})^{2}}}{n}}$
-
-- Mean error (bias): $ME = \frac{\sum{(y_{i} - \hat{y}_{i}})}{n}$
-
-Classification: 
-
-- Overall, Producer, User accuracy 
-
-- Kappa coefficient
+varImpPlot(rf_species)
+```
 
 ## Training and validation sets
 
 - It is important to assess the accuracy of a model of unseen data 
 
-- Most obvious way is to split the observations into training and validation (testing) sets
+- Most obvious way is to split the observations into training and validation (testing) sets: `caret::createDataPartition()`
 
 ![](https://community.alteryx.com/t5/image/serverpage/image-id/71542i222AF143484A2306/image-size/large?v=v2&px=999){width=80%}
 
@@ -186,25 +209,65 @@ Classification:
 
 ![](https://community.alteryx.com/t5/image/serverpage/image-id/71553i43D85DE352069CB9/image-size/large?v=v2&px=999){width=80%}
 
-## Scatterplot of predicted VS observed values
+If interested, have a look at the `caret` or `tidymodels` package
 
-```{r, echo = FALSE}
-my_lm_model <- lm(body_mass_g ~ 1 + bill_length_mm + bill_depth_mm + flipper_length_mm + sex, 
-   data = dat)
+## Save a model 
 
-lm_preds <- my_lm_model$fitted.values
-lm_obs <- my_lm_model$model$body_mass_g
+- Once you have developed a model, you can save it as an RDS file (R object)
 
-lm_df <- data.frame(obs = my_lm_model$model$body_mass_g, 
-                    pred = my_lm_model$fitted.values)
+```{r, eval=FALSE}
+readr::save_rds(my_model, file = "path/to/directory/my_model.rds")
+```
+
+- You can restore it later on: 
+
+```{r, eval=FALSE}
+my_model <- readr::read_rds("path/to/directory/my_model.rds")
+```
+
+## Make predictions for new data
+
+- We have another data frame with new observations of the predictor variables
+
+- What is the predicted body mass? 
+
+```{r}
+new_obs <- readr::read_rds("../data/new_obs_penguins.rds")
+
+head(new_obs)
 ```
 
 ```{r}
-ggplot(lm_df, aes(x = pred, y = obs)) + 
-  geom_point()+ 
-  geom_abline(linetype = "dashed") + 
-  coord_equal() + 
-  theme_bw() + 
-  labs(x = "Predicted body mass (g)", 
-       y = "Obsverved body mass (g)")
+predict(rf_body_mass, new_obs)
 ```
+
+## Mapped predictions - Stem density example
+
+- We can also have gridded predictor variables
+
+```{r}
+raster_pred_vars <- terra::rast("../data/r_pred_vars.tif")
+
+raster_pred_vars
+
+terra::plot(terra::subset(raster_pred_vars, c("p95", "cov_2m")))
+```
+
+- We load a random forest model predicting stem density for the lidar metrics
+
+```{r}
+rf_dens <- readr::read_rds("../data/rf_dens.rds")
+
+rf_dens
+```
+
+- The function `terra::predict` can be used to apply the model across the gridded predictor variables
+
+```{r}
+map_dens <- terra::predict(raster_pred_vars, 
+                           rf_dens)
+
+terra::plot(map_dens)
+```
+
+
