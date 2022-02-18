@@ -4,8 +4,8 @@ subtitle: "FCOR599 Workshop"
 author: "Sarah Smith-Tripp, Martin Queinnec"
 date: "18/02/2022"
 output:
-  ioslides_presentation: default
   slidy_presentation: default
+  ioslides_presentation: default
 ---
 
 ```{r setup, include=FALSE}
@@ -98,9 +98,9 @@ my_lm_model <- lm(body_mass_g ~ 1 + bill_length_mm + bill_depth_mm + flipper_len
    data = dat)
 
 summary(my_lm_model)
-par(mfrow = c(1,4))
+par(mfrow = c(2, 2))
 plot(my_lm_model)
-par(mfrom = c(1,1))
+par(mfrow = c(1,1))
 ```
 
 ## Linear model with random effects
@@ -118,7 +118,7 @@ ggplot(dat, aes(body_mass_g, group = species )) + geom_density(aes(fill= species
 ```
 
 ## Building random effect models 
-```{r message = F}
+```{r message = F, warning=FALSE}
 my_random_intercept_model <- lmer(body_mass_g ~   bill_length_mm + (1|species), data = dat)
 my_random_slope_model <- lmer(body_mass_g ~   bill_length_mm + (bill_length_mm|species), data = dat)
 dat$predict_random <- predict(my_random_slope_model)
@@ -127,12 +127,14 @@ ggplot(dat, aes(group = species, color = species)) + geom_point(aes(x = bill_len
   geom_line(aes(bill_length_mm, predict_random)) + theme_bw()
 ```
 
-##checking models of random effects 
--check model fits
+## Summarizing outputs of mixed models
+
 ```{r}
 summary(my_random_slope_model)
 summary(my_random_intercept_model)
 ```
+
+## Checking model fits 
 
 ```{r, echo = F}
 Model_Checking_data <- dat %>% 
@@ -149,8 +151,10 @@ resid_graph <-  ggplot(Model_Checking_data) +
   geom_point(aes(fit, resid_mod, color = species)) + geom_abline(aes(intercept = 0, slope = 0)) + theme_bw()
 plot_grid(qqplot_test, resid_graph, rel_widths = c(1, 1.5))
 ```
-- compare models with log likelihood test
-```{r}
+
+## Comparing Models with Likelihood Ratio Tests
+
+```{r, warning=FALSE}
 anova(my_random_slope_model, my_random_intercept_model)
 
 MuMIn::r.squaredGLMM(my_random_intercept_model)
@@ -158,10 +162,7 @@ MuMIn::r.squaredGLMM(my_random_intercept_model)
 
 ```
 
-
 -Nakagawa, S., Johnson, P.C.D., Schielzeth, H., 2017. The coefficient of determination R2 and intra-class correlation coefficient from generalized linear mixed-effects models revisited and expanded. Journal of The Royal Society Interface 14, 20170213. https://doi.org/10.1098/rsif.2017.0213
-
-
 
 
 ## Random Forest models
@@ -283,20 +284,6 @@ importance(rf_species)
 varImpPlot(rf_species)
 ```
 
-## Training and validation sets
-
-- It is important to assess the accuracy of a model of unseen data 
-
-- Most obvious way is to split the observations into training and validation (testing) sets: `caret::createDataPartition()`
-
-![](https://community.alteryx.com/t5/image/serverpage/image-id/71542i222AF143484A2306/image-size/large?v=v2&px=999){width=80%}
-
-- We can also use *cross-validation* (e.g. k-fold CV with k = 4)
-
-![](https://community.alteryx.com/t5/image/serverpage/image-id/71553i43D85DE352069CB9/image-size/large?v=v2&px=999){width=80%}
-
-If interested, have a look at the `caret` or `tidymodels` package
-
 ## Save a model 
 
 - Once you have developed a model, you can save it as an RDS file (R object)
@@ -356,4 +343,5 @@ map_dens <- terra::predict(raster_pred_vars,
 terra::plot(map_dens)
 ```
 
+## Questions? 
 
